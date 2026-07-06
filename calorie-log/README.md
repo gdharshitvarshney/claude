@@ -19,11 +19,21 @@ commits + pushes it for you.
 
 ## Your daily target
 
-Profile: **Male · lightly active · goal: lose ~0.5 kg/week**
+Profile: **Male · age 30 · 170 cm · 75 kg · lightly active · goal: lose ~0.5 kg/week**
 
-> **Target: pending** — awaiting age, height (cm), and current weight (kg) to
-> finish the calculation. Once provided, this section will show your
-> maintenance calories and your weight-loss target.
+| Metric | Value |
+|--------|-------|
+| BMR (Mifflin–St Jeor) | **1,668 kcal** |
+| TDEE / maintenance (×1.375) | **≈ 2,290 kcal/day** |
+| **Daily target (−500 for ~0.5 kg/wk)** | **≈ 1,800 kcal/day** |
+
+At 170 cm / 75 kg your BMI is **~26** (just into the "overweight" band, 25–30).
+Reaching the top of the healthy range (BMI 24.9) is about **72 kg** — roughly
+**3 kg** away, ~6 weeks at this pace.
+
+> **Aim for ~1,800 kcal/day.** Eating at maintenance (~2,290) holds weight;
+> going below ~1,500 isn't advised without medical guidance. Recalculate this
+> after every ~4–5 kg of change, since BMR falls as weight drops.
 
 ### How the target is calculated
 
