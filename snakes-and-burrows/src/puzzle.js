@@ -139,7 +139,7 @@ export function generate(cfg, rng) {
       const j = (rng() * (i + 1)) | 0;
       [idx[i], idx[j]] = [idx[j], idx[i]];
     }
-    // A given still fully inside its hole shows nothing, so it reads as a gecko
+    // A given still fully inside its hole shows nothing, so it reads as a snake
     // the player simply failed to move. Prefer givens that are visible.
     idx.sort((a, b) => (levels[b] > 0) - (levels[a] > 0));
     const locked = idx.slice(0, prefill);

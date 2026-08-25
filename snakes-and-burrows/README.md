@@ -1,21 +1,24 @@
-# Geckos & Burrows — a 3D thermometer puzzle
+# Snakes & Burrows — a 3D thermometer puzzle
 
-A logic puzzle played with cute, blinking geckos on a chunky 3D board, built with
+A logic puzzle played with cute, blinking snakes on a board carved out of a flat
+sheet, built with
 [Three.js](https://threejs.org). No build step needed to play and no runtime
 dependencies: `index.html` is a single self-contained file (Three.js is inlined),
 so you can open it straight off disk or serve it from anywhere.
 
-It is a 3D remake of a 2D canvas prototype, art-directed after Rollic's *Gecko
-Out*. The rules and every gesture are the prototype's, unchanged.
+It is a 3D remake of a 2D canvas prototype. The characters are art-directed after
+*Snake Pass* — oversized eyes under a heavy brow, cream muzzle, wide grin — and
+the board after a flat sheet with the play area cut into it behind a rounded
+white lip. The rules and every gesture are the prototype's, unchanged.
 
 ## How to play
 
-Each gecko lives in a **burrow** — a fixed path of cells with a **hole** at one
-end. A gecko always fills its burrow from the hole outwards: it can be 0 cells
+Each snake lives in a **burrow** — a fixed path of cells with a **hole** at one
+end. A snake always fills its burrow from the hole outwards: it can be 0 cells
 out, 1 cell out, 2 cells out, and so on. It can never skip a cell or leave a gap.
 
 The numbers on the top and left edges say **how many cells in that row or column
-must end up covered by gecko**. Slide every gecko to the right length so that
+must end up covered by snake**. Slide every snake to the right length so that
 each row and each column matches its number exactly, and you win.
 
 Every board is generated so that it has exactly one solution *and* can be reached
@@ -23,25 +26,25 @@ by pure deduction — you never have to guess.
 
 ## Controls
 
-- **Tap** a cell — the gecko comes out to that cell, or pulls back in past it.
-- **Drag** from a gecko — it follows your finger along the burrow, continuously.
+- **Tap** a cell — the snake comes out to that cell, or pulls back in past it.
+- **Drag** from a snake — it follows your finger along the burrow, continuously.
 - **Long-press** a cell — drops a wooden block on it. Blocked cells are ones
-  you've decided the gecko can't reach, and it will never slide past one.
-- **Tap a block** — sends the gecko all the way to it and clears that block.
+  you've decided the snake can't reach, and it will never slide past one.
+- **Tap a block** — sends the snake all the way to it and clears that block.
 - **Double-tap a hole** — all the way out, then again for all the way back in.
 
 ## Friction controls
 
-Five toggles under *Friction controls* strip away the bookkeeping the game does
+Five toggles behind the gear in the top HUD strip away the bookkeeping the game does
 for you: live count-down numbers, solved lines settling green, pebbles on cells a
-gecko can no longer reach, drag-to-slide, and double-tap shortcuts. Turn them all
+snake can no longer reach, drag-to-slide, and double-tap shortcuts. Turn them all
 off to feel the unreduced puzzle — the rules are identical either way.
 
 ## Tiers
 
 | Tier | Grid | Notes |
 | --- | --- | --- |
-| Learn | 5×5 | Straight burrows, two geckos given |
+| Learn | 5×5 | Straight burrows, two snakes given |
 | Easy | 6×6 | Straight burrows, one given |
 | Medium | 6×6 | Burrows can bend |
 | Hard | 7×7 | Longer bending burrows |
@@ -70,7 +73,7 @@ npm test               # generator soundness over hundreds of boards per tier
 | `src/theme.js` | Every colour, proportion and timing in one object |
 | `src/scene.js` | Renderer, camera framing, lighting |
 | `src/board.js` | Slab, tiles, tunnels, holes, clue chips, blocks |
-| `src/gecko.js` | Gecko mesh, blinking, idle motion, legs |
+| `src/snake.js` | Snake mesh, face, blinking, tongue flicks, idle motion |
 | `src/game.js` | State, gestures, drag feel, UI wiring |
 | `src/audio.js` | Synthesised SFX and haptics |
 
@@ -82,6 +85,6 @@ available on the machine.
 
 ## A note on the art
 
-The palette and proportions in `src/theme.js` are a first pass. Everything
-visual is read from that one object, so an art revision is a single-file change
-followed by `npm run build`.
+Every colour, proportion and timing is read from `src/theme.js`, so an art
+revision is a single-file change followed by `npm run build` — no hunting for
+hard-coded values through the geometry code.

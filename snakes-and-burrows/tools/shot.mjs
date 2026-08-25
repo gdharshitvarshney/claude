@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
-const outDir = process.argv[2] || '/tmp/geckoshots';
+const outDir = process.argv[2] || '/tmp/shots';
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch({
@@ -15,7 +15,7 @@ const errors = [];
 page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 page.on('pageerror', e => errors.push('pageerror: ' + e.message));
 
-await page.goto('file:///home/user/claude/gecko-out-3d/index.html');
+await page.goto('file:///home/user/claude/snakes-and-burrows/index.html');
 await page.waitForTimeout(2500);
 
 const diag = await page.evaluate(() => {

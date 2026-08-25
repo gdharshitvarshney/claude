@@ -4,7 +4,7 @@
    against a 430 ms long-press. Usage: node tools/play.mjs [outdir] */
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
-const out = process.argv[2] || '/tmp/geckoplay';
+const out = process.argv[2] || '/tmp/snakeplay';
 mkdirSync(out, { recursive: true });
 
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -12,7 +12,7 @@ const p = await b.newPage({ viewport: { width: 430, height: 900 }, deviceScaleFa
 const errs = [];
 p.on('pageerror', e => errs.push('pageerror: ' + e.message));
 p.on('console', m => { if (m.type() === 'error' && !m.text().includes('ERR_CONNECTION')) errs.push('console: ' + m.text()); });
-await p.goto('file:///home/user/claude/gecko-out-3d/index.html');
+await p.goto('file:///home/user/claude/snakes-and-burrows/index.html');
 await p.waitForTimeout(1600);
 
 let fails = 0;
@@ -25,7 +25,7 @@ const check = (name, ok, detail = '') => {
 const gesture = script => p.evaluate(async script => {
   const G = window.__game, n = G.S.n, cam = G.stage.camera, cv = document.getElementById('cv');
   const rect = cv.getBoundingClientRect();
-  const ax = i => i + 1.5 - (n + 1) / 2;
+  const ax = i => i - (n - 1) / 2;
   const xy = (r, c) => {
     const v = cam.position.clone().set(ax(c), 0, ax(r));
     v.project(cam);
@@ -86,14 +86,14 @@ console.log(`playing burrow ${i} (length ${L}) on a ${s.len.length}-burrow board
 await gesture([['down', ...path[0]], ['up']]);
 await p.waitForTimeout(400);
 let a = await S();
-check('tap a hole sends the gecko out one cell', a.cur[i] === 1, `cur=${a.cur[i]}`);
+check('tap a hole sends the snake out one cell', a.cur[i] === 1, `cur=${a.cur[i]}`);
 check('a tap is exactly one move', a.moves === 1 && a.hist === 1, `moves=${a.moves} hist=${a.hist}`);
 
 /* 2. drag from the hole to the far end */
 const trace = await gesture([['down', ...path[0]], ['moveTo', ...path[L - 1], 18], ['up']]);
 await p.waitForTimeout(500);
 a = await S();
-check('drag slides the gecko to the far end', a.cur[i] === L, `cur=${a.cur[i]} of ${L}`);
+check('drag slides the snake to the far end', a.cur[i] === L, `cur=${a.cur[i]} of ${L}`);
 const tr = trace.filter(v => v != null);
 check('the slide target never lurches backwards mid-drag',
   tr.every((v, k) => k === 0 || v >= tr[k - 1] - 0.02), tr.slice(0, 5).join(' '));
@@ -110,21 +110,21 @@ await gesture([['down', ...path[L - 1]], ['wait', 620], ['up']]);
 await p.waitForTimeout(400);
 a = await S();
 check('long-press blocks from that cell back', a.cap[i] === L - 1, `cap=${a.cap[i]}`);
-check('a blocked cell pushes the gecko out of it', a.cur[i] <= a.cap[i], `cur=${a.cur[i]} cap=${a.cap[i]}`);
+check('a blocked cell pushes the snake out of it', a.cur[i] <= a.cap[i], `cur=${a.cur[i]} cap=${a.cap[i]}`);
 await p.screenshot({ path: `${out}/play-blocked.png` });
 
 /* 4. tap the block */
 await gesture([['down', ...path[L - 1]], ['up']]);
 await p.waitForTimeout(400);
 a = await S();
-check('tapping a block sends the gecko to it and clears it',
+check('tapping a block sends the snake to it and clears it',
   a.cur[i] === L && a.cap[i] === L, `cur=${a.cur[i]} cap=${a.cap[i]}`);
 
 /* 5. double-tap the hole */
 await gesture([['down', ...path[0]], ['up'], ['wait', 90], ['down', ...path[0]], ['up']]);
 await p.waitForTimeout(700);
 a = await S();
-check('double-tapping a hole pulls the gecko all the way in', a.cur[i] === 0, `cur=${a.cur[i]}`);
+check('double-tapping a hole pulls the snake all the way in', a.cur[i] === 0, `cur=${a.cur[i]}`);
 
 /* 6. undo */
 await p.click('#undo');
@@ -132,8 +132,10 @@ await p.waitForTimeout(300);
 a = await S();
 check('undo restores the level before that gesture', a.cur[i] === L, `cur=${a.cur[i]}`);
 
-/* 7. drag toggle off means no sliding */
-await p.click('summary');
+/* 7. the friction toggles now live behind the gear in the HUD */
+await p.click('#settings');
+await p.waitForTimeout(350);
+check('the settings sheet opens', await p.locator('.sheet.on').count() === 1);
 await p.uncheck('#t_drag');
 const before = (await S()).cur[i];
 await gesture([['down', ...path[0]], ['moveTo', ...path[L - 1], 10], ['up']]);
@@ -141,6 +143,9 @@ await p.waitForTimeout(400);
 a = await S();
 check('with drag-to-slide off, a stroke only taps', a.cur[i] !== L || before === L, `cur=${a.cur[i]}`);
 await p.check('#t_drag');
+await p.click('#sheetClose');
+await p.waitForTimeout(350);
+check('the settings sheet closes', await p.locator('.sheet.on').count() === 0);
 
 /* 8. solve */
 await p.evaluate(() => { for (let k = 0; k < 60; k++) document.getElementById('hint').click(); });

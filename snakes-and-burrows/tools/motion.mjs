@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const b = await chromium.launch({ args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport:{width:430,height:900} });
 p.on('pageerror', e => console.log('[pageerror]', e.message));
-await p.goto('file:///home/user/claude/gecko-out-3d/index.html');
+await p.goto('file:///home/user/claude/snakes-and-burrows/index.html');
 await p.waitForTimeout(1200);
 await p.getByRole('button', { name: 'Hard' }).click();
 await p.waitForTimeout(1200);
@@ -11,7 +11,7 @@ await p.evaluate(() => { const S = window.__game.S; for (let i=0;i<S.cur.length;
 await p.waitForTimeout(2000);
 
 const sample = () => p.evaluate(() => {
-  const g = window.__game.geckos[0];
+  const g = window.__game.snakes[0];
   const pos = g.body.geometry.attributes.position.array;
   let sum = 0; for (let i = 0; i < 300; i++) sum += pos[i];
   return { spine: +sum.toFixed(4), blink: +g.blink.toFixed(3),
@@ -33,13 +33,13 @@ console.log('legs attached :', a.legOn);
 const blinks = await p.evaluate(() => new Promise(res => {
   let seen = 0, was = 0;
   const t = setInterval(() => {
-    const v = window.__game.geckos.reduce((n, g) => n + (g.blink > 0.5 ? 1 : 0), 0);
+    const v = window.__game.snakes.reduce((n, g) => n + (g.blink > 0.5 ? 1 : 0), 0);
     if (v > was) seen++;
     was = v;
   }, 60);
   setTimeout(() => { clearInterval(t); res(seen); }, 8000);
 }));
-console.log('blink events over 8s (all geckos):', blinks);
+console.log('blink events over 8s (all snakes):', blinks);
 
 const fps = await p.evaluate(() => new Promise(res => {
   const t = []; let n = 0, last = performance.now();
@@ -48,5 +48,5 @@ const fps = await p.evaluate(() => new Promise(res => {
     else { t.sort((x,y)=>x-y); res({ median:+t[40].toFixed(1), p90:+t[71].toFixed(1) }); } };
   requestAnimationFrame(tick);
 }));
-console.log('frame ms on an 8x8, all geckos out, SOFTWARE renderer:', JSON.stringify(fps));
+console.log('frame ms on an 8x8, all snakes out, SOFTWARE renderer:', JSON.stringify(fps));
 await b.close();

@@ -1,6 +1,6 @@
 /* Game state, gestures and the frame loop.
    The rules, the gesture vocabulary and the friction toggles are the 2D
-   prototype's, unchanged. What is new is that the visual length of a gecko is
+   prototype's, unchanged. What is new is that the visual length of a snake is
    continuous while its logical level stays whole: during a drag the body is
    glued to the finger, and the level commits as it crosses cell boundaries. */
 import * as THREE from 'three';
@@ -8,13 +8,13 @@ import { TIERS, generate, mulberry } from './puzzle.js';
 import { THEME, REDUCED } from './theme.js';
 import { Stage } from './scene.js';
 import { Board, axis, boardSpan } from './board.js';
-import { Gecko } from './gecko.js';
+import { Snake } from './snake.js';
 import { SFX, sfx, unlock } from './audio.js';
 
 const $ = id => document.getElementById(id);
 const clamp = THREE.MathUtils.clamp;
 
-let stage, board, geckos = [], S = null;
+let stage, board, snakes = [], S = null;
 let anim = [], vel = [], fast = [], dragTarget = [];
 let tierName = 'Learn', endlessWins = 0;
 let drag = null, press = null, tapMem = { i: -1, t: 0, before: 0, beforeCap: 0, pushed: false };
@@ -68,12 +68,12 @@ function newPuzzle() {
   anim = S.cur.slice(); vel = S.cur.map(() => 0);
   fast = S.cur.map(() => false); dragTarget = S.cur.map(() => null);
 
-  const spin = (Math.random() * THEME.geckos.length) | 0;
-  const colors = p.cells.map((_, i) => THEME.geckos[(i + spin) % THEME.geckos.length]);
+  const spin = (Math.random() * THEME.snakes.length) | 0;
+  const colors = p.cells.map((_, i) => THEME.snakes[(i + spin) % THEME.snakes.length]);
   board.build(S, colors);
-  geckos.forEach(g => g.dispose());
-  geckos = p.cells.map((path, i) =>
-    new Gecko(stage.root, path, n, colors[i], lockSet.has(i), Math.random()));
+  snakes.forEach(s => s.dispose());
+  snakes = p.cells.map((path, i) =>
+    new Snake(stage.root, path, n, colors[i], lockSet.has(i), Math.random()));
 
   if (press) { clearTimeout(press.timer); press = null; }
   tapMem = { i: -1, t: 0, before: 0, beforeCap: 0, pushed: false };
@@ -114,7 +114,7 @@ function longPress() {
   S.hist.push([i, before, beforeCap]);
   $('moves').textContent = S.moves;
   if (!S.t0) S.t0 = Date.now();
-  S.cur[i] = Math.min(before, j);       // the gecko retreats out of blocked ground
+  S.cur[i] = Math.min(before, j);       // the snake retreats out of blocked ground
   S.cap[i] = j;                         // block j .. tail
   dirty = true;
   SFX.cross();
@@ -127,18 +127,18 @@ function cellAt(ev) {
   if (!p) return null;
   hasLook = true;
   const n = S.n;
-  const c = Math.round(p.x - 1.5 + (n + 1) / 2);
-  const r = Math.round(p.z - 1.5 + (n + 1) / 2);
+  const c = Math.round(p.x + (n - 1) / 2);
+  const r = Math.round(p.z + (n - 1) / 2);
   if (r < 0 || c < 0 || r >= n || c >= n) return null;
   return S.owner[r][c];
 }
 
-/** Continuous level for a finger at world point p, projected onto gecko i's spine.
+/** Continuous level for a finger at world point p, projected onto snake i's spine.
     Control points run two per cell, so a finger over the centre of cell m lands on
     index 2m+2 and asks for level m+1 — the same "fill up to my finger" rule the
     tap uses, just without the rounding. */
 function levelAtPoint(i, p) {
-  const pts = geckos[i].pts, N = geckos[i].N;
+  const pts = snakes[i].pts, N = snakes[i].N;
   let best = Infinity, bestIdx = 2;
   for (let k = 2; k < N - 1; k++) {           // skip the buried section
     const a = pts[k], b = pts[k + 1];
@@ -158,6 +158,7 @@ function onDown(ev) {
   if (!S || S.solved) return;
   unlock();
   const h = cellAt(ev); if (!h) return;
+  hasLook = false;
   const [i, j] = h;
   if (S.lock.has(i)) { SFX.blocked(); return; }
   ev.preventDefault();
@@ -183,8 +184,8 @@ function onDown(ev) {
   }
 
   const before = S.cur[i], beforeCap = S.cap[i];
-  // tapping a block sends the gecko to it and clears only that one block;
-  // otherwise the tapped cell toggles — the gecko pulls in past it, or comes out to it
+  // tapping a block sends the snake to it and clears only that one block;
+  // otherwise the tapped cell toggles — the snake pulls in past it, or comes out to it
   const pushed = j >= beforeCap
     ? apply(i, j + 1, j + 1, true)
     : apply(i, j < before ? j : j + 1, beforeCap, true);
@@ -198,15 +199,13 @@ function onDown(ev) {
 
 function onMove(ev) {
   if (!S) return;
-  const [nx, ny] = stage.ndc(ev);
-  stage.setPointer(nx, ny);
   if (press && (Math.abs(ev.clientX - press.x) > 9 || Math.abs(ev.clientY - press.y) > 9)) endPress();
   if (!drag || S.solved) return;
   const evs = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
   const last = evs[evs.length - 1] || ev;
   const p = stage.pick(last, lookPoint);
   if (!p) return;
-  hasLook = true;
+  hasLook = true;   // only set here, so eyes track a drag and not an idle cursor
   const i = drag.i;
   const raw = levelAtPoint(i, p);
   const target = clamp(raw, 0, S.cap[i]);
@@ -222,12 +221,13 @@ function onMove(ev) {
 function onUp() {
   endPress();
   if (drag) { dragTarget[drag.i] = null; drag = null; }
+  hasLook = false;                 // eyes drift back to their resting gaze
 }
 
-/** a gecko sitting wholly inside a line that just completed gets a little wiggle */
+/** a snake sitting wholly inside a line that just completed gets a little wiggle */
 function celebrate(done, before) {
   const n = S.n;
-  geckos.forEach((g, i) => {
+  snakes.forEach((g, i) => {
     if (S.cur[i] === 0) return;
     const cells = S.burrows[i].slice(0, S.cur[i]);
     const hit = cells.some(([r, c]) =>
@@ -242,7 +242,7 @@ function checkWin() {
   for (let i = 0; i < S.n; i++)
     if (c.rows[i] !== S.clues.rows[i] || c.cols[i] !== S.clues.cols[i]) return;
   S.solved = true;
-  geckos.forEach((g, i) => g.cheer(0.8 + i * 0.05));
+  snakes.forEach((s, i) => s.cheer(0.8 + i * 0.05));
   SFX.win();
   const secs = S.t0 ? Math.round((Date.now() - S.t0) / 1000) : 0;
   let extra = '';
@@ -261,11 +261,11 @@ const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 async function save() {
   try {
     if (window.storage) {
-      await window.storage.set('gecko:endless', String(endlessWins));
-      await window.storage.set('gecko:mute', sfx.muted ? '1' : '0');
+      await window.storage.set('snakes:endless', String(endlessWins));
+      await window.storage.set('snakes:mute', sfx.muted ? '1' : '0');
     } else {
-      localStorage.setItem('gecko:endless', String(endlessWins));
-      localStorage.setItem('gecko:mute', sfx.muted ? '1' : '0');
+      localStorage.setItem('snakes:endless', String(endlessWins));
+      localStorage.setItem('snakes:mute', sfx.muted ? '1' : '0');
     }
   } catch (_) {}
 }
@@ -273,8 +273,8 @@ async function load() {
   try {
     const get = async k => window.storage
       ? (await window.storage.get(k))?.value : localStorage.getItem(k);
-    endlessWins = parseInt(await get('gecko:endless'), 10) || 0;
-    sfx.muted = (await get('gecko:mute')) === '1';
+    endlessWins = parseInt(await get('snakes:endless'), 10) || 0;
+    sfx.muted = (await get('snakes:mute')) === '1';
   } catch (_) {}
 }
 
@@ -296,10 +296,8 @@ function loop(now) {
     const e = Math.exp(-w * dt);
     const nx = (x + (vel[i] + w * x) * dt) * e;
     const nv = (vel[i] - (vel[i] + w * x) * w * dt) * e;
-    const prev = anim[i];
     anim[i] = clamp(goal + nx, 0, S.burrows[i].length);
     vel[i] = nv;
-    geckos[i].advance(anim[i] - prev);
     if (Math.abs(anim[i] - goal) < 0.002 && Math.abs(vel[i]) < 0.002) {
       anim[i] = goal; vel[i] = 0; if (dragTarget[i] == null) fast[i] = false;
     }
@@ -318,12 +316,12 @@ function loop(now) {
     lineDone = done;
     dirty = false;
   }
-  board.update(S, cnt, opt, dt, t);
+  board.update(S, cnt, opt, dt);
   board.setHold(press ? S.burrows[press.i][press.j] : null,
     press ? Math.min(1, (Date.now() - press.start) / THEME.holdMs) : 0, S.n);
 
-  for (let i = 0; i < geckos.length; i++)
-    geckos[i].update(anim[i], dt, t, hasLook ? lookPoint : null);
+  for (let i = 0; i < snakes.length; i++)
+    snakes[i].update(anim[i], dt, t, drag && hasLook ? lookPoint : null);
 
   if (S.t0 && !S.solved) {
     clockAcc += dt;
@@ -369,14 +367,23 @@ export async function main() {
     S.hints++;
     apply(i, S.sol[i], S.burrows[i].length, true);
     S.lock.add(i);
-    geckos[i].locked = true;
+    snakes[i].locked = true;
   };
   const muteBtn = $('mute');
   const paintMute = () => {
-    muteBtn.textContent = sfx.muted ? 'Sound off' : 'Sound on';
     muteBtn.setAttribute('aria-pressed', String(!sfx.muted));
+    const wave = document.getElementById('wave');
+    if (wave) wave.style.opacity = sfx.muted ? '0' : '1';
   };
   muteBtn.onclick = () => { sfx.muted = !sfx.muted; paintMute(); save(); };
+
+  // friction toggles live behind the gear in the HUD now, not in a page-long panel
+  const sheet = $('sheet'), scrim = $('scrim');
+  const showSheet = on => { sheet.classList.toggle('on', on); scrim.classList.toggle('on', on); };
+  $('settings').onclick = () => showSheet(true);
+  $('sheetClose').onclick = () => showSheet(false);
+  scrim.onclick = () => showSheet(false);
+  addEventListener('keydown', e => { if (e.key === 'Escape') showSheet(false); });
 
   [['t_count', 'count'], ['t_dim', 'dim'], ['t_dots', 'dots'],
    ['t_drag', 'drag'], ['t_dbl', 'dbl']].forEach(([id, key]) => {
@@ -394,7 +401,7 @@ export async function main() {
 
   // a small handle for tests and tuning; harmless in production
   window.__game = {
-    get S() { return S; }, get geckos() { return geckos; }, get anim() { return anim; },
+    get S() { return S; }, get snakes() { return snakes; }, get anim() { return anim; },
     get drag() { return drag; }, get dragTarget() { return dragTarget; },
     opt, newPuzzle, stage, board, cellAt, levelAtPoint,
   };

@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 const b = await chromium.launch({ args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
 const p = await b.newPage({ viewport:{width:430,height:900} });
-await p.goto('file:///home/user/claude/gecko-out-3d/index.html');
+await p.goto('file:///home/user/claude/snakes-and-burrows/index.html');
 await p.waitForTimeout(1200);
 await p.getByRole('button', { name: 'Hard' }).click();
 await p.waitForTimeout(1500);

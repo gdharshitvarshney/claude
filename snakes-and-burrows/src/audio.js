@@ -44,7 +44,7 @@ function buzz(ms) {
 }
 
 export const SFX = {
-  /** one cell of travel — pitch rises as the gecko comes further out */
+  /** one cell of travel — pitch rises as the snake comes further out */
   tick(level, total) {
     const k = total > 1 ? (level - 1) / (total - 1) : 0;
     blip({ freq: 320 + k * 220, to: 380 + k * 240, dur: 0.055, type: 'triangle', gain: 0.5 });

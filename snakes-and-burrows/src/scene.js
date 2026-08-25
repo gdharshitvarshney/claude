@@ -29,7 +29,7 @@ export class Stage {
     this.scene.environmentIntensity = 0.42;
     pmrem.dispose();
 
-    const hemi = new THREE.HemisphereLight(0xdcf4ff, 0x9a8158, 0.55);
+    const hemi = new THREE.HemisphereLight(0xf2f7ff, 0x9aa6b4, 0.62);
     this.scene.add(hemi);
 
     this.key = new THREE.DirectionalLight(0xfff4e0, 2.1);
@@ -49,8 +49,6 @@ export class Stage {
 
     this.dist = 14;
     this.half = 4;
-    this.parallax = new THREE.Vector2();
-    this._px = new THREE.Vector2();
     this.raycaster = new THREE.Raycaster();
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   }
@@ -76,25 +74,20 @@ export class Stage {
 
     // fit the board in both axes; the tilt stretches what the camera must cover
     const tan = Math.tan(THREE.MathUtils.degToRad(THEME.fov) / 2);
-    const need = this.half * 1.04;
+    const need = this.half * 1.0;
     const dV = (need / Math.cos(this.tilt)) / tan;
     const dH = need / (tan * this.camera.aspect);
-    this.dist = Math.max(dV, dH) * 1.06;
+    this.dist = Math.max(dV, dH) * 1.02;
 
     this.camera.updateProjectionMatrix();
     this.place();
   }
 
-  /** pointer in NDC drives a hair of camera drift, which reads as parallax */
-  setPointer(ndcX, ndcY) { this._px.set(ndcX || 0, ndcY || 0); }
-
+  /** The camera is fixed. It used to drift with the pointer, which made the
+      whole board sway under the cursor — more distracting than dimensional. */
   place() {
-    const p = this.parallax.lerp(this._px, 0.08);
     const d = this.dist;
-    const x = p.x * THEME.parallax * d;
-    const y = Math.cos(this.tilt) * d;
-    const z = Math.sin(this.tilt) * d - p.y * THEME.parallax * d;
-    this.camera.position.set(x, y, z);
+    this.camera.position.set(0, Math.cos(this.tilt) * d, Math.sin(this.tilt) * d);
     this.camera.lookAt(0, 0, 0);
     this.key.target.position.set(0, 0, 0);
     this.key.target.updateMatrixWorld();
@@ -110,14 +103,7 @@ export class Stage {
     return hit ? out : null;
   }
 
-  ndc(ev) {
-    const r = this.renderer.domElement.getBoundingClientRect();
-    return [((ev.clientX - r.left) / r.width) * 2 - 1,
-            -((ev.clientY - r.top) / r.height) * 2 + 1];
-  }
-
   render() {
-    this.place();
     this.renderer.render(this.scene, this.camera);
   }
 }

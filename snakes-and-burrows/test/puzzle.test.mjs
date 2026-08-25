@@ -1,6 +1,6 @@
 /* Generator soundness: run with `node test/puzzle.test.mjs`.
    Asserts every generated board is a legal packing, that its clues match its
-   solution, and that line propagation alone pins every gecko — the property the
+   solution, and that line propagation alone pins every snake — the property the
    game leans on to promise "always solvable without guessing". */
 import { TIERS, generate, prep, cluesFrom, propagate, mulberry } from '../src/puzzle.js';
 
@@ -59,14 +59,14 @@ for (const [tier, base] of Object.entries(TIERS)) {
       if (back.cols[i] !== p.clues.cols[i]) fail(tier, seed, `col ${i} clue mismatch`);
     }
 
-    // 4. propagation alone pins every gecko to that solution — unique + no-guess
+    // 4. propagation alone pins every snake to that solution — unique + no-guess
     const fixed = new Array(T.length).fill(null);
     for (const i of p.locked) fixed[i] = p.levels[i];
     const dom = propagate(T, p.clues, n, fixed);
     if (!dom) { fail(tier, seed, 'propagation contradicted a valid board'); continue; }
     for (let i = 0; i < dom.length; i++) {
-      if (dom[i].length !== 1) fail(tier, seed, `gecko ${i} left ${dom[i].length} options`);
-      else if (dom[i][0] !== p.levels[i]) fail(tier, seed, `gecko ${i} pinned to the wrong level`);
+      if (dom[i].length !== 1) fail(tier, seed, `snake ${i} left ${dom[i].length} options`);
+      else if (dom[i][0] !== p.levels[i]) fail(tier, seed, `snake ${i} pinned to the wrong level`);
     }
 
     // 5. givens are honoured
