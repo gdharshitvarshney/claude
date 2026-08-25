@@ -13,6 +13,11 @@ white lip. The rules and every gesture are the prototype's, unchanged.
 
 ## How to play
 
+Every snake on a board shares one colour — a level is red, or purple, or green —
+so the eye reads shape and length rather than sorting hues. A **given** (a snake
+the puzzle starts with placed) is that same colour, washed out, and cannot be
+dragged.
+
 Each snake lives in a **burrow** — a fixed path of cells with a **hole** at one
 end. A snake always fills its burrow from the hole outwards: it can be 0 cells
 out, 1 cell out, 2 cells out, and so on. It can never skip a cell or leave a gap.
@@ -39,6 +44,13 @@ Five toggles behind the gear in the top HUD strip away the bookkeeping the game 
 for you: live count-down numbers, solved lines settling green, pebbles on cells a
 snake can no longer reach, drag-to-slide, and double-tap shortcuts. Turn them all
 off to feel the unreduced puzzle — the rules are identical either way.
+
+## Camera
+
+The gear also holds tilt, rotation and zoom sliders. The board can be viewed
+from almost overhead or swung round to a low three-quarter angle, and the
+framing recomputes so the whole board stays in shot at any angle. Your setting
+is saved between sessions; *Reset camera* returns to the default.
 
 ## Tiers
 

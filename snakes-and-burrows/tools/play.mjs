@@ -147,7 +147,24 @@ await p.click('#sheetClose');
 await p.waitForTimeout(350);
 check('the settings sheet closes', await p.locator('.sheet.on').count() === 0);
 
-/* 8. solve */
+/* 8. picking still works with the camera orbited away from square-on */
+await p.evaluate(() => {
+  for (const [id, v] of [['camTilt', 34], ['camYaw', 38], ['camZoom', 110]]) {
+    const el = document.getElementById(id);
+    el.value = v; el.dispatchEvent(new Event('input'));
+  }
+});
+await p.waitForTimeout(600);
+const preOrbit = (await S()).cur[i];
+await gesture([['down', ...path[0]], ['up']]);
+await p.waitForTimeout(400);
+a = await S();
+check('a tap lands on the right cell with the camera orbited',
+  a.cur[i] !== preOrbit, `${preOrbit} -> ${a.cur[i]}`);
+await p.evaluate(() => document.getElementById('camReset').click());
+await p.waitForTimeout(500);
+
+/* 9. solve */
 await p.evaluate(() => { for (let k = 0; k < 60; k++) document.getElementById('hint').click(); });
 await p.waitForTimeout(1500);
 a = await S();

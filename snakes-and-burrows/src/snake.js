@@ -77,7 +77,9 @@ export class Snake {
     this.level = 0;
     this.look = new THREE.Vector2();
 
-    const base = new THREE.Color(locked ? THEME.locked : color);
+    const base = locked
+      ? new THREE.Color(color).lerp(new THREE.Color(THEME.locked), 0.62)
+      : new THREE.Color(color);
     this.color = base;
     this.group = new THREE.Group();
     parent.add(this.group);
@@ -126,11 +128,11 @@ export class Snake {
 
     // skull plus the two brow ridges that give it an expression
     this.head.add(Object.assign(new THREE.Mesh(weld([
-      baked(new THREE.SphereGeometry(R, 22, 16), { scale: [0.98, 0.84, 1.26] }),
+      baked(new THREE.SphereGeometry(R, 22, 16), { scale: [1.08, 0.70, 1.34] }),
       baked(new THREE.SphereGeometry(THEME.browR, 14, 10),
-        { scale: [1.45, 0.45, 1.35], pos: [-R * 0.55, R * 0.66, R * 0.14] }),
+        { scale: [1.5, 0.5, 1.5], pos: [-R * 0.62, R * 0.46, R * 0.06] }),
       baked(new THREE.SphereGeometry(THEME.browR, 14, 10),
-        { scale: [1.45, 0.45, 1.35], pos: [R * 0.55, R * 0.66, R * 0.14] }),
+        { scale: [1.5, 0.5, 1.5], pos: [R * 0.62, R * 0.46, R * 0.06] }),
     ]), skin), { castShadow: true }));
 
     // cream muzzle wrapping the snout and lower jaw
@@ -158,8 +160,9 @@ export class Snake {
 
     /* ---- eyes: both always do the same thing, so each layer is one mesh ---- */
     const eR = THEME.eyeR;
-    const gaze = new THREE.Vector3(0, 0.66, 0.75).normalize();   // up and forward
-    const at = sx => [sx * R * THEME.eyeSpread, R * THEME.eyeRise, R * 0.40];
+    // eyes sit on the sides of the skull, so they look outward and up, not ahead
+    const gaze = new THREE.Vector3(0.62, 0.60, 0.42).normalize();
+    const at = sx => [sx * R * THEME.eyeSpread, R * THEME.eyeRise, R * 0.30];
     const pair = (geo, off) => weld([-1, 1].map(sx => baked(geo, {
       pos: [at(sx)[0] + off[0] * sx, at(sx)[1] + off[1], at(sx)[2] + off[2]],
     })));
@@ -228,11 +231,23 @@ export class Snake {
     const lift = THEME.headLift * Math.min(1, level / 1.3);
     const liftFrom = 1 - Math.min(0.92, THEME.headLiftRun / cells);
 
-    if (!this._samples) this._samples = Array.from({ length: this.maxRings }, () => new THREE.Vector3());
-    const P = this._samples;
+    if (!this._samples) {
+      this._samples = Array.from({ length: this.maxRings }, () => new THREE.Vector3());
+      this._smooth = Array.from({ length: this.maxRings }, () => new THREE.Vector3());
+    }
+    const P = this._samples, T = this._smooth;
     for (let i = 0; i < rings; i++) {
       this.curve.getPoint((i / (rings - 1)) * tHead, P[i]);
       P[i].y += lift * smooth(liftFrom, 1, i / (rings - 1));
+    }
+    // A spline through two control points per cell still turns a corner in about
+    // a quarter cell, which reads as a kink on a body this thick. Relaxing the
+    // sampled spine a few times rounds the bends out; both ends stay pinned so
+    // the tail keeps its hole and the head keeps its position.
+    for (let pass = 0; pass < THEME.smoothPasses; pass++) {
+      for (let i = 1; i < rings - 1; i++)
+        T[i].copy(P[i - 1]).add(P[i + 1]).addScaledVector(P[i], 2).multiplyScalar(0.25);
+      for (let i = 1; i < rings - 1; i++) P[i].copy(T[i]);
     }
 
     const pos = this.pos, nrm = this.nrm;

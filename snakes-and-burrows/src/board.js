@@ -152,7 +152,9 @@ export class Board {
       cellAlt: stdMat(col(THEME.cellAlt)),
       cellSolved: stdMat(col(THEME.cellSolved)),
       sheet: stdMat(col(THEME.surface), { roughness: 0.78 }),
-      lip: stdMat(col(THEME.lip), { roughness: 0.5 }),
+      // the lip is thin now, so it earns its contrast by being genuinely brighter
+      lip: new THREE.MeshStandardMaterial({ color: col(THEME.lip), roughness: 0.32,
+        emissive: col(THEME.lip), emissiveIntensity: 0.28 }),
       recess: stdMat(col(THEME.recess), { roughness: 0.85 }),
       chip: stdMat(col(THEME.chip), { roughness: 0.5 }),
       hole: stdMat(col(THEME.hole), { roughness: 0.95, side: THREE.DoubleSide }),
@@ -238,7 +240,8 @@ export class Board {
     S.burrows.forEach((path, i) => {
       const sc = colors[i];
       const tun = new THREE.Mesh(this.own(tunnelGeometry(path, n)),
-        this.own(stdMat(mix(THEME.cell, sc, THEME.tunnelTint), { roughness: 0.7 })));
+        this.own(stdMat(mix(THEME.cell, sc, THEME.tunnelTint)
+          .lerp(new THREE.Color(0xffffff), THEME.tunnelLift2), { roughness: 0.7 })));
       tun.position.y = THEME.tunnelLift;
       this.group.add(tun);
 

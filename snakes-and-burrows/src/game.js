@@ -68,8 +68,10 @@ function newPuzzle() {
   anim = S.cur.slice(); vel = S.cur.map(() => 0);
   fast = S.cur.map(() => false); dragTarget = S.cur.map(() => null);
 
-  const spin = (Math.random() * THEME.snakes.length) | 0;
-  const colors = p.cells.map((_, i) => THEME.snakes[(i + spin) % THEME.snakes.length]);
+  // one colour per level: every snake on a board shares a hue, and givens are
+  // that same hue washed out rather than a second colour competing with it
+  const hue = THEME.snakes[(Math.random() * THEME.snakes.length) | 0];
+  const colors = p.cells.map(() => hue);
   board.build(S, colors);
   snakes.forEach(s => s.dispose());
   snakes = p.cells.map((path, i) =>
@@ -258,14 +260,19 @@ function checkWin() {
 const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /* ---------- storage ---------- */
+// the camera the player picked, kept outside main() so save/load can reach it
+const view = { tilt: THEME.tiltDeg, yaw: THEME.yawDeg, zoom: THEME.zoom };
+const camJSON = () => JSON.stringify(view);
 async function save() {
   try {
     if (window.storage) {
       await window.storage.set('snakes:endless', String(endlessWins));
       await window.storage.set('snakes:mute', sfx.muted ? '1' : '0');
+      await window.storage.set('snakes:cam', camJSON());
     } else {
       localStorage.setItem('snakes:endless', String(endlessWins));
       localStorage.setItem('snakes:mute', sfx.muted ? '1' : '0');
+      localStorage.setItem('snakes:cam', camJSON());
     }
   } catch (_) {}
 }
@@ -275,6 +282,13 @@ async function load() {
       ? (await window.storage.get(k))?.value : localStorage.getItem(k);
     endlessWins = parseInt(await get('snakes:endless'), 10) || 0;
     sfx.muted = (await get('snakes:mute')) === '1';
+    const raw = await get('snakes:cam');
+    if (raw) {
+      const v = JSON.parse(raw);
+      if (Number.isFinite(v.tilt)) view.tilt = clamp(v.tilt, 0, 70);
+      if (Number.isFinite(v.yaw)) view.yaw = clamp(v.yaw, -180, 180);
+      if (Number.isFinite(v.zoom)) view.zoom = clamp(v.zoom, 0.6, 1.5);
+    }
   } catch (_) {}
 }
 
@@ -377,6 +391,26 @@ export async function main() {
   };
   muteBtn.onclick = () => { sfx.muted = !sfx.muted; paintMute(); save(); };
 
+  /* ---- camera controls ---- */
+  const cam = view;
+  const camEls = { tilt: $('camTilt'), yaw: $('camYaw'), zoom: $('camZoom') };
+  const paintCam = () => {
+    camEls.tilt.value = cam.tilt; $('camTiltV').textContent = `${Math.round(cam.tilt)}°`;
+    camEls.yaw.value = cam.yaw;   $('camYawV').textContent = `${Math.round(cam.yaw)}°`;
+    camEls.zoom.value = Math.round(cam.zoom * 100);
+    $('camZoomV').textContent = `${Math.round(cam.zoom * 100)}%`;
+    stage.setView(cam);
+  };
+  camEls.tilt.oninput = e => { cam.tilt = +e.target.value; paintCam(); };
+  camEls.yaw.oninput = e => { cam.yaw = +e.target.value; paintCam(); };
+  camEls.zoom.oninput = e => { cam.zoom = +e.target.value / 100; paintCam(); };
+  for (const el of Object.values(camEls)) el.onchange = save;
+  $('camReset').onclick = () => {
+    cam.tilt = THEME.tiltDeg; cam.yaw = THEME.yawDeg; cam.zoom = THEME.zoom;
+    paintCam(); save();
+  };
+  window.__paintCam = paintCam;
+
   // friction toggles live behind the gear in the HUD now, not in a page-long panel
   const sheet = $('sheet'), scrim = $('scrim');
   const showSheet = on => { sheet.classList.toggle('on', on); scrim.classList.toggle('on', on); };
@@ -408,6 +442,7 @@ export async function main() {
 
   await load();
   paintMute();
+  paintCam();
   newPuzzle();
   requestAnimationFrame(loop);
   if (document.fonts) document.fonts.ready.then(() => {

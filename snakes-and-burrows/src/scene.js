@@ -49,6 +49,11 @@ export class Stage {
 
     this.dist = 14;
     this.half = 4;
+    this.tiltDeg = THEME.tiltDeg;
+    this.yawDeg = THEME.yawDeg;
+    this.zoom = THEME.zoom;
+    this.tilt = THREE.MathUtils.degToRad(this.tiltDeg);
+    this.yaw = THREE.MathUtils.degToRad(this.yawDeg);
     this.raycaster = new THREE.Raycaster();
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   }
@@ -56,12 +61,20 @@ export class Stage {
   /** Frame a board that spans `span` cells per side (grid + clue gutter + rim). */
   frame(span) {
     this.half = span / 2;
-    const tilt = THREE.MathUtils.degToRad(THEME.tiltDeg);
     const s = this.key.shadow.camera;
     const r = this.half + 2;
     s.left = -r; s.right = r; s.top = r; s.bottom = -r; s.near = 1; s.far = 30;
     s.updateProjectionMatrix();
-    this.tilt = tilt;
+    this.resize();
+  }
+
+  /** Player-facing camera controls: tilt off vertical, orbit, and zoom. */
+  setView({ tilt, yaw, zoom }) {
+    if (tilt != null) this.tiltDeg = tilt;
+    if (yaw != null) this.yawDeg = yaw;
+    if (zoom != null) this.zoom = zoom;
+    this.tilt = THREE.MathUtils.degToRad(this.tiltDeg);
+    this.yaw = THREE.MathUtils.degToRad(this.yawDeg);
     this.resize();
   }
 
@@ -72,12 +85,14 @@ export class Stage {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
 
-    // fit the board in both axes; the tilt stretches what the camera must cover
+    // fit the board in both axes; the tilt stretches what the camera must cover,
+    // and an orbited square presents a wider silhouette than an axis-aligned one
     const tan = Math.tan(THREE.MathUtils.degToRad(THEME.fov) / 2);
-    const need = this.half * 1.0;
+    const spin = Math.abs(Math.cos(this.yaw)) + Math.abs(Math.sin(this.yaw));
+    const need = this.half * spin;
     const dV = (need / Math.cos(this.tilt)) / tan;
     const dH = need / (tan * this.camera.aspect);
-    this.dist = Math.max(dV, dH) * 1.02;
+    this.dist = Math.max(dV, dH) * 1.02 / this.zoom;
 
     this.camera.updateProjectionMatrix();
     this.place();
@@ -86,8 +101,8 @@ export class Stage {
   /** The camera is fixed. It used to drift with the pointer, which made the
       whole board sway under the cursor — more distracting than dimensional. */
   place() {
-    const d = this.dist;
-    this.camera.position.set(0, Math.cos(this.tilt) * d, Math.sin(this.tilt) * d);
+    const d = this.dist, r = Math.sin(this.tilt) * d;
+    this.camera.position.set(Math.sin(this.yaw) * r, Math.cos(this.tilt) * d, Math.cos(this.yaw) * r);
     this.camera.lookAt(0, 0, 0);
     this.key.target.position.set(0, 0, 0);
     this.key.target.updateMatrixWorld();
