@@ -1,0 +1,123 @@
+/* Renderer, camera framing and lighting.
+   The camera sits nearly overhead, so almost none of the depth comes from the
+   angle — it comes from the key light's shadows, the bevels and the eye
+   highlights. That is why the light rig here is doing more work than usual. */
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { THEME } from './theme.js';
+
+export class Stage {
+  constructor(canvas) {
+    this.renderer = new THREE.WebGLRenderer({
+      canvas, antialias: true, alpha: true, powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    // ACES desaturates saturated colour hard; the neutral curve keeps neon neon
+    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.VSMShadowMap;   // soft edges without the deprecated PCFSoft
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(THEME.fov, 1, 0.5, 120);
+    this.root = new THREE.Group();
+    this.scene.add(this.root);
+
+    // soft studio reflections give the pieces their toy-plastic sheen
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.42;
+    pmrem.dispose();
+
+    const hemi = new THREE.HemisphereLight(0xdcf4ff, 0x9a8158, 0.55);
+    this.scene.add(hemi);
+
+    this.key = new THREE.DirectionalLight(0xfff4e0, 2.1);
+    this.key.position.set(-4.5, 9, 5);
+    this.key.castShadow = true;
+    // shadows are ~60% of the frame here, so keep the map small and the blur cheap
+    this.key.shadow.mapSize.set(1024, 1024);
+    this.key.shadow.bias = -0.0008;
+    this.key.shadow.normalBias = 0.03;
+    this.key.shadow.radius = 3.5;
+    this.key.shadow.blurSamples = 8;
+    this.scene.add(this.key, this.key.target);
+
+    const fill = new THREE.DirectionalLight(0xbfe9ff, 0.45);
+    fill.position.set(5, 4, -6);
+    this.scene.add(fill);
+
+    this.dist = 14;
+    this.half = 4;
+    this.parallax = new THREE.Vector2();
+    this._px = new THREE.Vector2();
+    this.raycaster = new THREE.Raycaster();
+    this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  }
+
+  /** Frame a board that spans `span` cells per side (grid + clue gutter + rim). */
+  frame(span) {
+    this.half = span / 2;
+    const tilt = THREE.MathUtils.degToRad(THEME.tiltDeg);
+    const s = this.key.shadow.camera;
+    const r = this.half + 2;
+    s.left = -r; s.right = r; s.top = r; s.bottom = -r; s.near = 1; s.far = 30;
+    s.updateProjectionMatrix();
+    this.tilt = tilt;
+    this.resize();
+  }
+
+  resize() {
+    const el = this.renderer.domElement.parentElement;
+    const w = el.clientWidth, h = el.clientHeight;
+    if (!w || !h) return;
+    this.renderer.setSize(w, h, false);
+    this.camera.aspect = w / h;
+
+    // fit the board in both axes; the tilt stretches what the camera must cover
+    const tan = Math.tan(THREE.MathUtils.degToRad(THEME.fov) / 2);
+    const need = this.half * 1.04;
+    const dV = (need / Math.cos(this.tilt)) / tan;
+    const dH = need / (tan * this.camera.aspect);
+    this.dist = Math.max(dV, dH) * 1.06;
+
+    this.camera.updateProjectionMatrix();
+    this.place();
+  }
+
+  /** pointer in NDC drives a hair of camera drift, which reads as parallax */
+  setPointer(ndcX, ndcY) { this._px.set(ndcX || 0, ndcY || 0); }
+
+  place() {
+    const p = this.parallax.lerp(this._px, 0.08);
+    const d = this.dist;
+    const x = p.x * THEME.parallax * d;
+    const y = Math.cos(this.tilt) * d;
+    const z = Math.sin(this.tilt) * d - p.y * THEME.parallax * d;
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(0, 0, 0);
+    this.key.target.position.set(0, 0, 0);
+    this.key.target.updateMatrixWorld();
+  }
+
+  /** Where a pointer event lands on the board's top plane, in world space. */
+  pick(ev, out = new THREE.Vector3()) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    const nx = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    const ny = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    this.raycaster.setFromCamera({ x: nx, y: ny }, this.camera);
+    const hit = this.raycaster.ray.intersectPlane(this.plane, out);
+    return hit ? out : null;
+  }
+
+  ndc(ev) {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return [((ev.clientX - r.left) / r.width) * 2 - 1,
+            -((ev.clientY - r.top) / r.height) * 2 + 1];
+  }
+
+  render() {
+    this.place();
+    this.renderer.render(this.scene, this.camera);
+  }
+}

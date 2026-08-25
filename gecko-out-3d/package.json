@@ -1,0 +1,14 @@
+{
+  "name": "gecko-out-3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/puzzle.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "three": "^0.185.1"
+  }
+}
